@@ -25,7 +25,9 @@ class CubicBezier
 			OrderedPair();
 			OrderedPair(float p_a, float p_b);
 			float val(int p_which);
-			void val(int p_which, float p_val);						
+			void val(int p_which, float p_val);		
+			float x();
+			float y();			
 
 			friend CubicBezier::OrderedPair operator *(int val, const CubicBezier::OrderedPair &op);
 			friend CubicBezier::OrderedPair operator *(const CubicBezier::OrderedPair &op, int val);
@@ -40,22 +42,43 @@ class CubicBezier
 
 		class Span {
 		public:
-			Span(OrderedPair* p_ctrl_pts);			
+			Span(OrderedPair* p_ctrl_pts, Span* p_prev_span);						
 			OrderedPair positionAtT(float p_t);
 			OrderedPair positionAtNextT();
 			void incrementSize(float p_h);
-			float incrementSize();
-			void initForwardDiff();
+			void incrementSizeFromX(float p_h);
+			float incrementSize();			
+			boolean containsX(float p_x);
+			boolean containsy(float p_y);			
+			float minX();
+			float maxX();
+			float rangeX();
+			float minY();
+			float maxY();
+			float rangeY();
+			int stepsRemaining();
+
+			void prevSpan(Span* p_span);
+			Span* prevSpan();
+			void nextSpan(Span* p_span);
+			Span* nextSpan();
 
 		private:			
+			void initForwardDiff();
 			void setCoeffs();
-			OrderedPair m_coeffs[4];
+
+			Span* m_next_span;
+			Span* m_prev_span;
+			static const int g_MAX_CTRL_PTS = 4;			
+			OrderedPair m_coeffs[g_MAX_CTRL_PTS];
 			OrderedPair* m_ctrl_pts;
 			float* m_abscissa;
 			float* m_position;
 			float m_h;				// The t step size for forward differencing calculation
 			float m_t;
-			OrderedPair m_fdiff_vals[4];
+			int m_t_steps_remain;
+			OrderedPair m_fdiff_vals[g_MAX_CTRL_PTS];
+			
 			
 		};		
 		
@@ -69,14 +92,24 @@ class CubicBezier
 
 		CubicBezier(OrderedPair* p_ctrl_pts, int p_knot_count, boolean p_only_knots);
 		~CubicBezier();
+		OrderedPair positionAtT(float p_t);
+		OrderedPair positionAtNextT();
+		void incrementSize(float p_h);
+		float incrementSize();
+		int stepsRemaining();
 
 	private:
 
 		/********** Private Variables **********/
 
 		boolean m_mem_allocated;
-		void initializeSpans(OrderedPair* p_ctrl_pts, boolean p_only_knots);
-
+		OrderedPair* m_ctrl_pts;
+		boolean m_only_knots;
+		void initializeSpans();
+		Span* m_cur_span;
+		float m_h;
+		float m_t;
+		int m_t_steps_remain;
 
 		/********** Private Functions **********/
 		void releaseMemory();
