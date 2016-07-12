@@ -17,17 +17,13 @@
 class CubicBezier
 {
 	public:
-		/*
-			If specifying only knots, inner control points are set equal
-			to their nearest knot, i.e.	p1 = p0 and p2 = p3, resulting
-			in a linear spline. Control points p1 and p2 for each span
-			may be modified later.
-		*/
 		
+		/********** Public Nested Classes **********/
+
 		class OrderedPair {
 		public:
 			OrderedPair();
-			OrderedPair(float p_x, float p_y);
+			OrderedPair(float p_a, float p_b);
 			float val(int p_which);
 			void val(int p_which, float p_val);						
 
@@ -37,10 +33,9 @@ class CubicBezier
 			friend CubicBezier::OrderedPair operator + (const CubicBezier::OrderedPair& p_op1, const CubicBezier::OrderedPair& p_op2);
 			friend CubicBezier::OrderedPair operator -(int val, const CubicBezier::OrderedPair &op);
 			friend CubicBezier::OrderedPair operator -(const CubicBezier::OrderedPair &op);
-			
 
 		private:
-			float* m_vals;
+			float* m_vals;	// The (a, b) values
 		};
 
 		class Span {
@@ -64,17 +59,27 @@ class CubicBezier
 			
 		};		
 		
+		/********** Public Variables **********/
+
 		int m_knot_count;
 		Span* m_spans;
 		int m_span_count;
+		
+		/********** Public Functions **********/
+
 		CubicBezier(OrderedPair* p_ctrl_pts, int p_knot_count, boolean p_only_knots);
 		~CubicBezier();
 
 	private:
+
+		/********** Private Variables **********/
+
 		boolean m_mem_allocated;
 		void initializeSpans(OrderedPair* p_ctrl_pts, boolean p_only_knots);
-		void releaseMemory();
 
+
+		/********** Private Functions **********/
+		void releaseMemory();
 };
 
 

@@ -6,11 +6,12 @@
 
 */
 
-/********** Point class functions **********/
+/********** OrderedPair class functions **********/
 
-CubicBezier::OrderedPair::OrderedPair(float p_x, float p_y){
-	val(0, p_x);			
-	val(1, p_y);
+#pragma region OrderedPair Class Functions
+CubicBezier::OrderedPair::OrderedPair(float p_a, float p_b){
+	val(0, p_a);			
+	val(1, p_b);
 }
 
 float CubicBezier::OrderedPair::val(int p_which){
@@ -23,6 +24,8 @@ void CubicBezier::OrderedPair::val(int p_which, float p_val){
 	m_vals[p_which] = p_val;
 }
 
+
+#pragma region Arithmatic Operator Overrides
 CubicBezier::OrderedPair operator * (int p_x, const CubicBezier::OrderedPair& p_op){
 	return CubicBezier::OrderedPair(p_op.m_vals[0] * p_x, p_op.m_vals[1] * p_x);
 }
@@ -41,9 +44,13 @@ CubicBezier::OrderedPair operator - (int p_x, const CubicBezier::OrderedPair& p_
 CubicBezier::OrderedPair operator - (const CubicBezier::OrderedPair& p_op){
 	return CubicBezier::OrderedPair(-p_op.m_vals[0], -p_op.m_vals[1]);
 }
+#pragma endregion
+
+#pragma endregion
 
 /********** Span class functions **********/
 
+#pragma region Span Class Functions
 CubicBezier::Span::Span(OrderedPair* p_ctrl_pts){		
 	m_ctrl_pts = p_ctrl_pts;
 	setCoeffs();
@@ -92,9 +99,18 @@ CubicBezier::OrderedPair CubicBezier::Span::positionAtT(float p_t){
 	}
 	return OrderedPair(pos[0], pos[1]);
 }
+#pragma endregion
 
 /********** CubicBezier class functions **********/
 
+#pragma region CubicBezier Class Functions
+
+/*
+	If specifying only knots, inner control points are set equal
+	to their nearest knot, i.e.	p1 = p0 and p2 = p3, resulting
+	in a linear spline. Control points p1 and p2 for each span
+	may be modified later.
+*/
 CubicBezier::CubicBezier(OrderedPair* p_ctrl_pts, int p_knot_count, boolean p_only_knots){
 	// Must have at least 2 knots to define a spline
 	if (p_knot_count < 2)
@@ -133,3 +149,4 @@ void CubicBezier::initializeSpans(OrderedPair* p_ctrl_pts, boolean p_only_knots)
 }
 
 
+#pragma endregion
