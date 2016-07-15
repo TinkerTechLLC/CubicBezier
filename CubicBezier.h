@@ -8,13 +8,12 @@
 #ifndef _BEZIER_h
 #define _BEZIER_h
 
-/*
+
 #if defined(ARDUINO) && ARDUINO >= 100
 	#include "Arduino.h"
 #else
 	#include "WProgram.h"
 #endif
-*/
 
 class OrderedPair {
 
@@ -27,12 +26,12 @@ class OrderedPair {
 			float x();
 			float y();			
 
-			int id();
-
 			friend OrderedPair operator *(int val, const OrderedPair &op);
 			friend OrderedPair operator *(const OrderedPair &op, int val);
 			friend OrderedPair operator *(float val, const OrderedPair &op);
 			friend OrderedPair operator *(const OrderedPair &op, float val);
+			friend OrderedPair operator *(double val, const OrderedPair &op);
+			friend OrderedPair operator *(const OrderedPair &op, double val);
 			friend OrderedPair operator +(int val, const OrderedPair &op);
 			friend OrderedPair operator +(const OrderedPair &op, int val);
 			friend OrderedPair operator +(float val, const OrderedPair &op);
@@ -43,8 +42,6 @@ class OrderedPair {
 
 		private:
 			float m_vals[2];	// The (a, b) values
-			static int g_id_gen;
-			int m_id;
 };
 
 class Span {
@@ -72,20 +69,19 @@ class Span {
 		void nextSpan(Span* p_span);
 		Span* nextSpan();
 		
-		void printCtrlPts();
+		OrderedPair *ctrlPts();
 		int id();
 
 	private:			
 		void initForwardDiff();
 		void setCoeffs();
-
-		Span *m_next_span;
-		Span *m_prev_span;
-		static const int g_MAX_CTRL_PTS = 4;			
 		OrderedPair m_coeff_A;
 		OrderedPair m_coeff_B;
 		OrderedPair m_coeff_C;
 		OrderedPair m_coeff_D;
+		Span *m_next_span;
+		Span *m_prev_span;
+		static const int g_MAX_CTRL_PTS = 4;			
 		OrderedPair m_ctrl_pts[g_MAX_CTRL_PTS];
 		float m_h;				// The t step size for forward differencing calculation
 		float m_T;
@@ -115,7 +111,7 @@ class CubicBezier
 		void initForwardDiff(float p_h);
 		float incrementSize();
 		int stepsRemaining();
-		void printFirstSpanPts();
+		Span *getSpan(int p_which);
 		void initSpans();
 
 	private:
@@ -129,10 +125,8 @@ class CubicBezier
 		float m_h;
 		float m_T;
 		int m_t_steps_remain;
-		static bool g_embedded;
 
-		/********** Private Functions **********/
-		
+		/********** Private Functions **********/		
 		
 		void releaseMemory();
 };

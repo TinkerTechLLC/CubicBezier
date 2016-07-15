@@ -1,34 +1,4 @@
-#include "stdafx.h"
 #include "CubicBezier.h"
-
-
-#if defined(__AVR_AT90USB1287__)
-#define SERIAL USBSerial
-#define EMBEDDED
-#elif defined(__AVR_ATmega328P__) || defined(__AVR_ATmega328__)  || defined(__AVR_ATmega168__)
-#define SERIAL Serial
-#define EMBEDDED
-#else
-#define DESKTOP
-#endif
-
-#if defined(EMBEDDED)
-// Defines
-#define P SERIAL.print
-#define PLN SERIAL.println
-#define STRING String
-bool CubicBezier::g_embedded = true;
-#elif defined(DESKTOP)
-#include <iostream>
-#include <iomanip>
-bool CubicBezier::g_embedded = false;
-using std::cout;
-using std::endl;
-using std::hex;
-using std::dec;
-#endif
-
-
 
 /*
 	This library provides the ability to compute cubic Bezier curves.
@@ -40,12 +10,9 @@ using std::dec;
 
 #pragma region OrderedPair Class Functions
 
-int OrderedPair::g_id_gen = 0;
-
 OrderedPair::OrderedPair(){}
 
-OrderedPair::OrderedPair(float p_x, float p_y){
-	m_id = g_id_gen++;
+OrderedPair::OrderedPair(float p_x, float p_y){	
 	m_vals[0] = p_x;
 	m_vals[1] = p_y;
 }
@@ -80,6 +47,12 @@ OrderedPair operator * (float p_x, const OrderedPair& p_op){
 	return OrderedPair(p_op.m_vals[0] * p_x, p_op.m_vals[1] * p_x);
 }
 OrderedPair operator * (const OrderedPair& p_op, float p_x){
+	return OrderedPair(p_op.m_vals[0] * p_x, p_op.m_vals[1] * p_x);
+}
+OrderedPair operator * (double p_x, const OrderedPair& p_op){
+	return OrderedPair(p_op.m_vals[0] * p_x, p_op.m_vals[1] * p_x);
+}
+OrderedPair operator * (const OrderedPair& p_op, double p_x){
 	return OrderedPair(p_op.m_vals[0] * p_x, p_op.m_vals[1] * p_x);
 }
 OrderedPair operator + (int p_x, const OrderedPair& p_op){
@@ -124,15 +97,7 @@ Span::Span(OrderedPair *p_ctrl_pts, Span *p_prev_span){
 		m_ctrl_pts[i] = p_ctrl_pts[i];
 	}	
 	m_next_span = NULL;
-	prevSpan(p_prev_span);			
-	setCoeffs();	
-}
-
-void Span::setCoeffs(){	
-	m_coeff_A = (-m_ctrl_pts[0]) + (3 * m_ctrl_pts[1]) + (-3 * m_ctrl_pts[2]) + m_ctrl_pts[3];
-	m_coeff_B = (3 * m_ctrl_pts[0]) + (-6 * m_ctrl_pts[1]) + (3 * m_ctrl_pts[2]);
-	m_coeff_C = (-3 * m_ctrl_pts[0]) + (3 * m_ctrl_pts[1]);
-	m_coeff_D = m_ctrl_pts[0];
+	prevSpan(p_prev_span);				
 }
 
 void Span::nextSpan(Span *p_next_span){	
@@ -174,22 +139,27 @@ float Span::incrementSize(){
 }
 
 void Span::initForwardDiff(){
+
+	// Calculate the coefficients
+	OrderedPair coeff_A = (-m_ctrl_pts[0]) + (3 * m_ctrl_pts[1]) + (-3 * m_ctrl_pts[2]) + m_ctrl_pts[3];
+	OrderedPair coeff_B = (3 * m_ctrl_pts[0]) + (-6 * m_ctrl_pts[1]) + (3 * m_ctrl_pts[2]);
+	OrderedPair coeff_C = (-3 * m_ctrl_pts[0]) + (3 * m_ctrl_pts[1]);
+	OrderedPair coeff_D = m_ctrl_pts[0];
+
 	// Set the initial forward differences	
-	m_fdiff_vals[0] = m_coeff_D;
-	m_fdiff_vals[1] = m_coeff_A * pow(m_h, 3) + m_coeff_B * pow(m_h, 2) + m_coeff_C * m_h;
-	m_fdiff_vals[3] = 6 * m_coeff_A * pow(m_h, 3);
-	m_fdiff_vals[2] = m_fdiff_vals[3] + (2 * m_coeff_B * pow(m_h, 2));	
+	m_fdiff_vals[0] = coeff_D;
+	m_fdiff_vals[1] = coeff_A * pow(m_h, 3) + coeff_B * pow(m_h, 2) + coeff_C * m_h;
+	m_fdiff_vals[3] = 6 * coeff_A * pow(m_h, 3);
+	m_fdiff_vals[2] = m_fdiff_vals[3] + (2 * coeff_B * pow(m_h, 2));	
 
-	/*cout << "h: " << m_h << "h^3: " << pow(m_h, 3) << "\n" << endl;
-
-	cout << "Coeffs:" << endl;
-	cout << "Ax: " << m_coeff_A.x() << " Bx: " << m_coeff_B.x() << " Cx: " << m_coeff_C.x() << " Dx: " << m_coeff_D.x() << endl;
-	cout << "Ay: " << m_coeff_A.y() << " By: " << m_coeff_B.y() << " Cy: " << m_coeff_C.y() << " Dy: " << m_coeff_D.y() << "\n" << endl;
-
-	cout << "Setting initial F-diffs" << endl;
-	cout << "Px: " << m_fdiff_vals[0].x() << " F1x: " << m_fdiff_vals[1].x() << " F2x: " << m_fdiff_vals[2].x() << " F3x: " << m_fdiff_vals[3].x() << endl;
-	cout << "Py: " << m_fdiff_vals[0].y() << " F1y: " << m_fdiff_vals[1].y() << " F2y: " << m_fdiff_vals[2].y() << " F3y: " << m_fdiff_vals[3].y() << "\n" << endl;
-	*/
+	Serial.print("P: ");
+	Serial.print(m_fdiff_vals[0].y());
+	Serial.print(" F1: ");
+	Serial.print(m_fdiff_vals[1].y());
+	Serial.print(" F2: ");
+	Serial.print(m_fdiff_vals[2].y());
+	Serial.print(" F3: ");
+	Serial.println(m_fdiff_vals[3].y());
 
 	// Zero the t step counter
 	m_T = 0;
@@ -199,9 +169,7 @@ int Span::stepsRemaining(){
 	return m_t_steps_remain;
 }
 	
-OrderedPair Span::positionAtNextT(){
-	//cout << "Px: " << m_fdiff_vals[0].x() << " F1x: " << m_fdiff_vals[1].x() << " F2x: " << m_fdiff_vals[2].x() << " F3x: " << m_fdiff_vals[3].x() << endl;
-	//cout << "Py: " << m_fdiff_vals[0].y() << " F1y: " << m_fdiff_vals[1].y() << " F2y: " << m_fdiff_vals[2].y() << " F3y: " << m_fdiff_vals[3].y() << "\n" << endl;
+OrderedPair Span::positionAtNextT(){	
 	const int FORWARD_DIFFS = 3;
 	for (int i = 0; i < FORWARD_DIFFS; i++){
 		m_fdiff_vals[i] = m_fdiff_vals[i] + m_fdiff_vals[i + 1];
@@ -211,7 +179,16 @@ OrderedPair Span::positionAtNextT(){
 	return m_fdiff_vals[0];
 }
 
-OrderedPair Span::positionAtT(float p_T){	
+void Span::setCoeffs(){
+	// Calculate the coefficients
+	OrderedPair m_coeff_A = (-m_ctrl_pts[0]) + (3 * m_ctrl_pts[1]) + (-3 * m_ctrl_pts[2]) + m_ctrl_pts[3];
+	OrderedPair m_coeff_B = (3 * m_ctrl_pts[0]) + (-6 * m_ctrl_pts[1]) + (3 * m_ctrl_pts[2]);
+	OrderedPair m_coeff_C = (-3 * m_ctrl_pts[0]) + (3 * m_ctrl_pts[1]);
+	OrderedPair m_coeff_D = m_ctrl_pts[0];
+}
+
+OrderedPair Span::positionAtT(float p_T){		
+
 	float pos[2];
 	for (int i = 0; i < 2; i++){
 		// B(t) = At^3 + Bt^2 + Ct + D
@@ -258,33 +235,9 @@ float Span::rangeY(){
 	return maxY() - minY();
 }
 
-#if defined DESKTOP
-void Span::printCtrlPts(){
-	cout << "Span ID: " << id() << endl;
-	for(int i = 0; i < 4; i++){
-		cout << "ctrl_pt " << i << " Address: " << hex << (int)&m_ctrl_pts[i] 
-			<< dec << " x: " << m_ctrl_pts[i].x() << " y: " << m_ctrl_pts[i].y() << endl;
-	}
-	cout << "Done printing points" << endl;
+OrderedPair *Span::ctrlPts(){
+	return m_ctrl_pts;
 }
-#elif defined EMBEDDED
-void Span::printCtrlPts(){
-	P("Span ID: ");
-	PLN(id());
-	for (int i = 0; i < 4; i++){
-		P("ctrl_pt ");
-		P(i);
-		P(" Address: ");
-		P((int)&m_ctrl_pts[i], hex);
-		P(" x: ");
-		P(m_ctrl_pts[i].x());
-		P(" y: ");
-		PLN(m_ctrl_pts[i].y());
-	}
-	PLN("Done printing points");
-}
-#endif
-
 
 int Span::id(){
 	return m_id;
@@ -327,19 +280,13 @@ void CubicBezier::releaseMemory(){
 }
 
 void CubicBezier::initSpans(){
-	
-	cout << "Bez - Initializing spans" << endl;
+		
 	// Dynamically allocate memory for span array
-	if (m_mem_allocated){	
-		cout << "Bez - Releasing allocated memory" << endl;
+	if (m_mem_allocated){			
 		releaseMemory();
 	}
-	size_t span_size = sizeof(Span);	
-	cout << "Bez - Span size: " << span_size << endl;	
+	size_t span_size = sizeof(Span);		
 	size_t memory_needed = m_span_count * span_size;	
-	cout << "Bez - Spans: " << m_span_count << endl;
-	cout << "Bez - Memory needed: " << memory_needed << endl;
-	cout << "Bez - Allocating memory for span array" << endl;
 	m_spans = (Span *)malloc(memory_needed);
 	m_mem_allocated = true;
 
@@ -385,8 +332,8 @@ OrderedPair CubicBezier::positionAtT(float p_T){
 	return OrderedPair(0, 0);
 }
 
-void CubicBezier::printFirstSpanPts(){
-	m_spans[0].printCtrlPts();
+Span *CubicBezier::getSpan(int p_which){
+	return &m_spans[p_which];
 }
 
 OrderedPair CubicBezier::positionAtNextT(){
