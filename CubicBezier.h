@@ -73,7 +73,6 @@ class Span {
 		int id();
 
 	private:			
-		void initForwardDiff();
 		void setCoeffs();
 		OrderedPair m_coeff_A;
 		OrderedPair m_coeff_B;
@@ -86,7 +85,6 @@ class Span {
 		float m_h;				// The t step size for forward differencing calculation
 		float m_T;
 		int m_t_steps_remain;
-		OrderedPair m_fdiff_vals[g_MAX_CTRL_PTS];	
 		static int g_id_gen;
 		int m_id;	
 };	

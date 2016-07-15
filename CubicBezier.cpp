@@ -131,52 +131,23 @@ void Span::incrementSizeFromX(float p_x){
 
 void Span::incrementSize(float p_h){
 	m_h = p_h;
-	initForwardDiff();
+	// Zero the t step counter
+	m_T = 0;
 }
 
 float Span::incrementSize(){
 	return m_h;
 }
 
-void Span::initForwardDiff(){
-
-	// Calculate the coefficients
-	OrderedPair coeff_A = (-m_ctrl_pts[0]) + (3 * m_ctrl_pts[1]) + (-3 * m_ctrl_pts[2]) + m_ctrl_pts[3];
-	OrderedPair coeff_B = (3 * m_ctrl_pts[0]) + (-6 * m_ctrl_pts[1]) + (3 * m_ctrl_pts[2]);
-	OrderedPair coeff_C = (-3 * m_ctrl_pts[0]) + (3 * m_ctrl_pts[1]);
-	OrderedPair coeff_D = m_ctrl_pts[0];
-
-	// Set the initial forward differences	
-	m_fdiff_vals[0] = coeff_D;
-	m_fdiff_vals[1] = coeff_A * pow(m_h, 3) + coeff_B * pow(m_h, 2) + coeff_C * m_h;
-	m_fdiff_vals[3] = 6 * coeff_A * pow(m_h, 3);
-	m_fdiff_vals[2] = m_fdiff_vals[3] + (2 * coeff_B * pow(m_h, 2));	
-
-	Serial.print("P: ");
-	Serial.print(m_fdiff_vals[0].y());
-	Serial.print(" F1: ");
-	Serial.print(m_fdiff_vals[1].y());
-	Serial.print(" F2: ");
-	Serial.print(m_fdiff_vals[2].y());
-	Serial.print(" F3: ");
-	Serial.println(m_fdiff_vals[3].y());
-
-	// Zero the t step counter
-	m_T = 0;
-}
-
 int Span::stepsRemaining(){
 	return m_t_steps_remain;
 }
 	
-OrderedPair Span::positionAtNextT(){	
-	const int FORWARD_DIFFS = 3;
-	for (int i = 0; i < FORWARD_DIFFS; i++){
-		m_fdiff_vals[i] = m_fdiff_vals[i] + m_fdiff_vals[i + 1];
-	}
+OrderedPair Span::positionAtNextT(){		
+	int this_T = m_T;
 	m_T += m_h;
 	m_t_steps_remain--;
-	return m_fdiff_vals[0];
+	return positionAtT(this_T);
 }
 
 void Span::setCoeffs(){
@@ -192,7 +163,13 @@ OrderedPair Span::positionAtT(float p_T){
 	float pos[2];
 	for (int i = 0; i < 2; i++){
 		// B(t) = At^3 + Bt^2 + Ct + D
-		pos[i] = m_coeff_A.val(i) * pow(p_T, 3) + m_coeff_B.val(i) * pow(p_T, 2) + m_coeff_C.val(i) * p_T + m_coeff_D.val(i);
+		// Calculate via Horner's rule
+		pos[i] = m_coeff_D.val(i);				
+		pos[i] += p_T * m_coeff_C.val(i);		
+		p_T *= p_T;
+		pos[i] += p_T * m_coeff_B.val(i);
+		p_T *= p_T;
+		pos[i] += p_T * m_coeff_A.val(i);		
 	}
 	return OrderedPair(pos[0], pos[1]);
 }
