@@ -8,33 +8,47 @@
 #ifndef _BEZIER_h
 #define _BEZIER_h
 
+/*
 #if defined(ARDUINO) && ARDUINO >= 100
 	#include "Arduino.h"
 #else
 	#include "WProgram.h"
 #endif
+*/
 
 class OrderedPair {
+
 		public:
 			OrderedPair();
 			OrderedPair(float p_a, float p_b);
+			//~OrderedPair();
 			float val(int p_which);
 			void val(int p_which, float p_val);		
 			float x();
 			float y();			
 
+			int id();
+
 			friend OrderedPair operator *(int val, const OrderedPair &op);
 			friend OrderedPair operator *(const OrderedPair &op, int val);
+			friend OrderedPair operator *(float val, const OrderedPair &op);
+			friend OrderedPair operator *(const OrderedPair &op, float val);
 			friend OrderedPair operator +(int val, const OrderedPair &op);
+			friend OrderedPair operator +(const OrderedPair &op, int val);
+			friend OrderedPair operator +(float val, const OrderedPair &op);
+			friend OrderedPair operator +(const OrderedPair &op, float val);
 			friend OrderedPair operator + (const OrderedPair& p_op1, const OrderedPair& p_op2);
 			friend OrderedPair operator -(int val, const OrderedPair &op);
 			friend OrderedPair operator -(const OrderedPair &op);
 
 		private:
 			float m_vals[2];	// The (a, b) values
+			static int g_id_gen;
+			int m_id;
 };
 
 class Span {
+
 	public:
 		Span();
 		Span(OrderedPair *p_ctrl_pts, Span* p_prev_span);						
@@ -43,8 +57,8 @@ class Span {
 		void incrementSize(float p_h);
 		void incrementSizeFromX(float p_h);
 		float incrementSize();			
-		boolean containsX(float p_x);
-		boolean containsY(float p_y);			
+		bool containsX(float p_x);
+		bool containsY(float p_y);
 		float minX();
 		float maxX();
 		float rangeX();
@@ -59,6 +73,7 @@ class Span {
 		Span* nextSpan();
 		
 		void printCtrlPts();
+		int id();
 
 	private:			
 		void initForwardDiff();
@@ -67,8 +82,11 @@ class Span {
 		Span *m_next_span;
 		Span *m_prev_span;
 		static const int g_MAX_CTRL_PTS = 4;			
-		OrderedPair m_coeffs[g_MAX_CTRL_PTS];
-		OrderedPair *m_ctrl_pts;
+		OrderedPair m_coeff_A;
+		OrderedPair m_coeff_B;
+		OrderedPair m_coeff_C;
+		OrderedPair m_coeff_D;
+		OrderedPair m_ctrl_pts[g_MAX_CTRL_PTS];
 		float m_h;				// The t step size for forward differencing calculation
 		float m_T;
 		int m_t_steps_remain;
@@ -90,28 +108,32 @@ class CubicBezier
 		/********** Public Functions **********/
 
 		CubicBezier();
-		CubicBezier(OrderedPair *p_ctrl_pts, int p_knot_count, boolean p_only_knots);
+		CubicBezier(OrderedPair *p_ctrl_pts, int p_knot_count, bool p_only_knots);
 		~CubicBezier();
 		OrderedPair positionAtT(float p_T);
 		OrderedPair positionAtNextT();
-		void incrementSize(float p_h);
+		void initForwardDiff(float p_h);
 		float incrementSize();
 		int stepsRemaining();
 		void printFirstSpanPts();
+		void initSpans();
+
 	private:
 
 		/********** Private Variables **********/
 
-		boolean m_mem_allocated;
+		bool m_mem_allocated;
 		OrderedPair *m_ctrl_pts;
-		boolean m_only_knots;
-		void initializeSpans();
+		bool m_only_knots;
 		Span* m_cur_span;
 		float m_h;
 		float m_T;
 		int m_t_steps_remain;
+		static bool g_embedded;
 
 		/********** Private Functions **********/
+		
+		
 		void releaseMemory();
 };
 
