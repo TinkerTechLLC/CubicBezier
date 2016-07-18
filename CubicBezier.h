@@ -23,7 +23,9 @@ class OrderedPair {
 			//~OrderedPair();
 			float val(int p_which);
 			void val(int p_which, float p_val);		
+			void x(int p_x);
 			float x();
+			void y(int p_y);
 			float y();			
 
 			friend OrderedPair operator *(int val, const OrderedPair &op);
@@ -82,7 +84,7 @@ class Span {
 		Span *m_prev_span;
 		static const int g_MAX_CTRL_PTS = 4;			
 		OrderedPair m_ctrl_pts[g_MAX_CTRL_PTS];
-		float m_h;				// The t step size for forward differencing calculation
+		float m_h;				// The t step size
 		float m_T;
 		int m_t_steps_remain;
 		static int g_id_gen;
@@ -105,8 +107,13 @@ class CubicBezier
 		CubicBezier(OrderedPair *p_ctrl_pts, int p_knot_count, bool p_only_knots);
 		~CubicBezier();
 		OrderedPair positionAtT(float p_T);
-		OrderedPair positionAtNextT();
-		void initForwardDiff(float p_h);
+		OrderedPair positionAtNextT();		
+		void knotCount(int p_count);
+		int knotCount();
+
+		void setNextX(float p_x);
+		void setNextY(float p_y);
+
 		float incrementSize();
 		int stepsRemaining();
 		Span *getSpan(int p_which);
@@ -123,6 +130,8 @@ class CubicBezier
 		float m_h;
 		float m_T;
 		int m_t_steps_remain;
+		int m_next_x;
+		int m_next_y;
 
 		/********** Private Functions **********/		
 		

@@ -27,12 +27,20 @@ void OrderedPair::val(int p_which, float p_val){
 	m_vals[p_which] = p_val;
 }
 
-float  OrderedPair::x(){
+float OrderedPair::x(){
 	return m_vals[0];
+}
+
+void OrderedPair::x(int p_x){
+	m_vals[0] = p_x;
 }
 
 float OrderedPair::y(){
 	return m_vals[1];
+}
+
+void OrderedPair::y(int p_y){
+	m_vals[1] = p_y;
 }
 
 
@@ -251,9 +259,45 @@ CubicBezier::~CubicBezier(){
 	releaseMemory();
 }
 
+void CubicBezier::knotCount(int p_count){
+	m_knot_count = p_count;
+	m_span_count = m_knot_count - 1;
+	const int PTS_PER_SPAN = 4;
+	/*
+		Allocate memory for control points here rather
+		than pointing to an external point array
+	*/
+	int pt_count = m_span_count * PTS_PER_SPAN;
+	m_ctrl_pts = (OrderedPair *)malloc(pt_count * sizeof(OrderedPair));
+	for (int i = 0; i < pt_count; i++){
+		m_ctrl_pts[i] = OrderedPair();
+	}
+
+	m_next_x = 0;
+	m_next_y = 0;
+}
+
+int CubicBezier::knotCount(){
+	return m_knot_count;
+}
+
 void CubicBezier::releaseMemory(){
 	if (m_mem_allocated)
 		free(m_spans);
+}
+
+void CubicBezier::setNextX(float p_x){
+	OrderedPair op = m_ctrl_pts[m_next_x];
+	op.x(p_x);
+	m_ctrl_pts[m_next_x] = op;
+	m_next_x++;
+}
+
+void CubicBezier::setNextY(float p_y){
+	OrderedPair op = m_ctrl_pts[m_next_y];
+	op.y(p_y);
+	m_ctrl_pts[m_next_y] = op;
+	m_next_y++;
 }
 
 void CubicBezier::initSpans(){
@@ -336,16 +380,6 @@ OrderedPair CubicBezier::positionAtNextT(){
 	m_t_steps_remain--;
 
 	return ret;
-}
-
-void CubicBezier::initForwardDiff(float p_h){
-	m_t_steps_remain = (int)(1 / p_h);
-	p_h *= m_spans[m_span_count - 1].maxX();
-
-	// Set the increment sizes for each of the segments
-	for (int i = 0; i < m_span_count; i++){
-		m_spans[i].incrementSizeFromX(p_h);
-	}
 }
 
 float CubicBezier::incrementSize(){
