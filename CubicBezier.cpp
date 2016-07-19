@@ -235,7 +235,9 @@ int Span::id(){
 
 #pragma region CubicBezier Class Functions
 
-CubicBezier::CubicBezier(){}
+CubicBezier::CubicBezier(){
+	init(NULL, 2, false);
+}
 
 /*
 	If specifying only knots, inner control points are set equal
@@ -246,12 +248,17 @@ CubicBezier::CubicBezier(){}
 CubicBezier::CubicBezier(OrderedPair *p_ctrl_pts, int p_knot_count, bool p_only_knots){
 	// Must have at least 2 knots to define a spline	
 	if (p_knot_count < 2)
-		return;
-	m_ctrl_pts = p_ctrl_pts;	
+		return;	
+	init(p_ctrl_pts, p_knot_count, p_only_knots);
+}
+
+void CubicBezier::init(OrderedPair *p_ctrl_pts, int p_knot_count, bool p_only_knots){
+	m_ctrl_pts = p_ctrl_pts;
 	m_knot_count = p_knot_count;
 	m_span_count = p_knot_count - 1;
-	m_mem_allocated = false;
-	m_only_knots = p_only_knots;			
+	m_span_mem_allocated = false;
+	m_ctrl_mem_allocated = false;
+	m_only_knots = p_only_knots;
 }
 
 // Default destructor
@@ -261,13 +268,14 @@ CubicBezier::~CubicBezier(){
 
 void CubicBezier::knotCount(int p_count){
 	m_knot_count = p_count;
-	m_span_count = m_knot_count - 1;
+	m_span_count = m_knot_count - 1;	
 	const int PTS_PER_SPAN = 4;
 	/*
 		Allocate memory for control points here rather
 		than pointing to an external point array
 	*/
 	int pt_count = m_span_count * PTS_PER_SPAN;
+	releaseMemory();
 	m_ctrl_pts = (OrderedPair *)malloc(pt_count * sizeof(OrderedPair));
 	for (int i = 0; i < pt_count; i++){
 		m_ctrl_pts[i] = OrderedPair();
@@ -282,8 +290,14 @@ int CubicBezier::knotCount(){
 }
 
 void CubicBezier::releaseMemory(){
-	if (m_mem_allocated)
+	if (m_span_mem_allocated){
 		free(m_spans);
+		m_span_mem_allocated = false;
+	}
+	if (m_ctrl_mem_allocated){
+		free(m_ctrl_pts);
+		m_ctrl_mem_allocated = false;
+	}
 }
 
 void CubicBezier::setNextX(float p_x){
@@ -303,13 +317,13 @@ void CubicBezier::setNextY(float p_y){
 void CubicBezier::initSpans(){
 		
 	// Dynamically allocate memory for span array
-	if (m_mem_allocated){			
-		releaseMemory();
+	if (m_span_mem_allocated){
+		free(m_spans);
 	}
 	size_t span_size = sizeof(Span);		
 	size_t memory_needed = m_span_count * span_size;	
 	m_spans = (Span *)malloc(memory_needed);
-	m_mem_allocated = true;
+	m_span_mem_allocated = true;
 
 	/** Extract control points for each span and create new span objects **/
 

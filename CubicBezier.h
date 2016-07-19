@@ -106,6 +106,7 @@ class CubicBezier
 		CubicBezier();
 		CubicBezier(OrderedPair *p_ctrl_pts, int p_knot_count, bool p_only_knots);
 		~CubicBezier();
+		void init(OrderedPair *p_ctrl_pts, int p_knot_count, bool p_only_knots);
 		OrderedPair positionAtT(float p_T);
 		OrderedPair positionAtNextT();		
 		void knotCount(int p_count);
@@ -118,12 +119,14 @@ class CubicBezier
 		int stepsRemaining();
 		Span *getSpan(int p_which);
 		void initSpans();
+		void releaseMemory();
 
 	private:
 
 		/********** Private Variables **********/
 
-		bool m_mem_allocated;
+		bool m_span_mem_allocated;
+		bool m_ctrl_mem_allocated;
 		OrderedPair *m_ctrl_pts;
 		bool m_only_knots;
 		Span* m_cur_span;
@@ -135,7 +138,7 @@ class CubicBezier
 
 		/********** Private Functions **********/		
 		
-		void releaseMemory();
+		
 };
 
 
