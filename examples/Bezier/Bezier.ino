@@ -1,7 +1,12 @@
 #include <CubicBezier.h>
+#include <hermite_spline.h>
+#include <key_frames\key_frames.h>
 
 // Variables
 long start_time;
+int trials = 1;
+int time_steps = 1000;
+OrderedPair ctrl_pts[4];
 
 void setup(){		
 	USBSerial.begin(9600);
@@ -26,7 +31,7 @@ void printMemoryConsumption(){
 void timeTrial(){
 
 	USBSerial.println("\nSetting control points");	
-	OrderedPair ctrl_pts[4];
+	
 	ctrl_pts[0] = OrderedPair(0, 0);
 	ctrl_pts[1] = OrderedPair(25, 60);
 	ctrl_pts[2] = OrderedPair(50, 10);
@@ -40,7 +45,57 @@ void timeTrial(){
 		USBSerial.print(" y: ");
 		USBSerial.println(ctrl_pts[i].y());
 	}
+
+	hornerTest();
+	hermiteTest();	
+	hornerIncremental();
+}
+
+void hornerIncremental(){
+	CubicBezier bezier = CubicBezier();
+	bezier.knotCount(3);
+	bezier.setNextX(0);
+	bezier.setNextX(25);
+	bezier.setNextX(50);
+	bezier.setNextX(75);
 	
+	bezier.setNextX(100);
+	bezier.setNextX(125);
+	bezier.setNextX(150);
+	bezier.setNextX(175);
+	
+	bezier.setNextY(0);
+	bezier.setNextY(60);
+	bezier.setNextY(10);
+	bezier.setNextY(75);
+	
+	
+	bezier.setNextY(100);
+	bezier.setNextY(50);
+	bezier.setNextY(30);
+	bezier.setNextY(15);
+	bezier.initSpans();
+
+	USBSerial.println("\nCubic Bezier control points after incremental setup");
+	printSpanCtrlPts(bezier.getSpan(0));
+	printSpanCtrlPts(bezier.getSpan(1));
+
+	float h = (float)1 / time_steps;
+	startTimer();
+	for (int j = 0; j < trials; j++){
+		for (int i = 0; i < time_steps + 1; i++){
+			float t = i * h;
+			OrderedPair point = bezier.positionAtT(t);
+			//cout << "t: "<< t << " x: " << point.x() << " y: "<< point.y() << endl;
+		}
+	}
+	long optimized_time = elapsedMicros();
+
+	USBSerial.print("Optimized execution time 2: ");
+	USBSerial.println(optimized_time);
+}
+
+void hornerTest(){
 	USBSerial.println("\nInitializing Cubic Bezier");
 	CubicBezier bezier = CubicBezier(ctrl_pts, 2, false);
 	bezier.initSpans();
@@ -49,9 +104,8 @@ void timeTrial(){
 	Span *first_span = bezier.getSpan(0);
 	printSpanCtrlPts(first_span);
 
-	int trials = 1;
 	USBSerial.println("\nGetting spline values with Horner's rule method");
-	int time_steps = 1000;
+
 	float h = (float)1 / time_steps;
 	startTimer();
 	for (int j = 0; j < trials; j++){
@@ -65,6 +119,32 @@ void timeTrial(){
 
 	USBSerial.print("Optimized execution time: ");
 	USBSerial.println(optimized_time);
+}
+
+void hermiteTest(){
+	KeyFrames kf = KeyFrames();
+	kf.setKFCount(2);
+	kf.setXN((float)0);
+	kf.setXN(25);
+	kf.setXN(50);
+	kf.setXN(75);
+	int count = 4;
+	for (int i = 0; i < count; i++){
+		kf.setDN((float)0);
+	}
+
+	float increment = 75 / time_steps;
+	startTimer();
+	for (int j = 0; j < trials; j++){
+		for (int i = 0; i < time_steps + 1; i++){
+			float x = increment * (float)i;
+			kf.pos(x);
+		}
+	}
+	long hermite_time = elapsedMicros();
+
+	USBSerial.print("Hermite execution time: ");
+	USBSerial.println(hermite_time);
 }
 
 void startTimer(){
