@@ -236,7 +236,7 @@ int Span::id(){
 #pragma region CubicBezier Class Functions
 
 CubicBezier::CubicBezier(){
-	init(NULL, 2, false);
+	init(NULL, 2);
 }
 
 
