@@ -1,5 +1,42 @@
 // Bezier.h
 
+/**
+
+@brief
+CubicBezier class
+
+The CubicBezier class stores allows for the computation of a cubic Bezier
+spline composed of one or more span segments. Also declared in CubicBezier.h
+are helper classes, Span and OrderedPair. A Bezier object contains one or more
+Span objects, which in turn uses four OrderedPair control points to calculate
+positions along the span.
+
+This particular library is written specifically for the application of interpolating
+motion paths of a physical motion control system through key points deined by
+a user. This being the case, while locations along the Span curves are computed
+as parameterized functions X(t) and Y(t), it is assumed that each Span is also
+a function Y(x), where x = time in seconds or frames. This allows more intuitive 
+look-up of a location along the Bezier curve by specifying a time, rather than
+the value of an arbitrary paramter.
+
+@author Michael Ploof
+
+(c) 2015 Dynamic Perception LLC
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+
 /*
 	Forward differencing reference:
 	http://www.drdobbs.com/forward-difference-calculation-of-bezier/184403417
@@ -104,9 +141,9 @@ class CubicBezier
 		/********** Public Functions **********/
 
 		CubicBezier();
-		CubicBezier(OrderedPair *p_ctrl_pts, int p_knot_count, bool p_only_knots);
+		CubicBezier(OrderedPair *p_ctrl_pts, int p_knot_count);
 		~CubicBezier();
-		void init(OrderedPair *p_ctrl_pts, int p_knot_count, bool p_only_knots);
+		void init(OrderedPair *p_ctrl_pts, int p_knot_count);
 		OrderedPair positionAtT(float p_T);
 		OrderedPair positionAtNextT();		
 		void knotCount(int p_count);
@@ -127,8 +164,7 @@ class CubicBezier
 
 		bool m_span_mem_allocated;
 		bool m_ctrl_mem_allocated;
-		OrderedPair *m_ctrl_pts;
-		bool m_only_knots;
+		OrderedPair *m_ctrl_pts;		
 		Span* m_cur_span;
 		float m_h;
 		float m_T;
@@ -141,7 +177,12 @@ class CubicBezier
 		
 };
 
-
-
-
 #endif
+
+/*
+
+@page cubicbezier Using the CubicBezier class
+
+// TODO Provide some documentation here
+
+*/

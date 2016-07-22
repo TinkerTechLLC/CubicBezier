@@ -239,26 +239,20 @@ CubicBezier::CubicBezier(){
 	init(NULL, 2, false);
 }
 
-/*
-	If specifying only knots, inner control points are set equal
-	to their nearest knot, i.e.	p1 = p0 and p2 = p3, resulting
-	in a linear spline. Control points p1 and p2 for each span
-	may be modified later.
-*/
-CubicBezier::CubicBezier(OrderedPair *p_ctrl_pts, int p_knot_count, bool p_only_knots){
+
+CubicBezier::CubicBezier(OrderedPair *p_ctrl_pts, int p_knot_count){
 	// Must have at least 2 knots to define a spline	
 	if (p_knot_count < 2)
 		return;	
-	init(p_ctrl_pts, p_knot_count, p_only_knots);
+	init(p_ctrl_pts, p_knot_count);
 }
 
-void CubicBezier::init(OrderedPair *p_ctrl_pts, int p_knot_count, bool p_only_knots){
+void CubicBezier::init(OrderedPair *p_ctrl_pts, int p_knot_count){
 	m_ctrl_pts = p_ctrl_pts;
 	m_knot_count = p_knot_count;
 	m_span_count = p_knot_count - 1;
 	m_span_mem_allocated = false;
-	m_ctrl_mem_allocated = false;
-	m_only_knots = p_only_knots;
+	m_ctrl_mem_allocated = false;	
 }
 
 // Default destructor
@@ -274,7 +268,7 @@ void CubicBezier::knotCount(int p_count){
 		Allocate memory for control points here rather
 		than pointing to an external point array
 	*/
-	int pt_count = m_span_count * PTS_PER_SPAN;
+	int pt_count = m_span_count * (PTS_PER_SPAN-1) + 1;	// span n pt[3] == span n+1 pt[0], so no need to duplicate linking points
 	releaseMemory();
 	m_ctrl_pts = (OrderedPair *)malloc(pt_count * sizeof(OrderedPair));
 	for (int i = 0; i < pt_count; i++){
@@ -327,16 +321,11 @@ void CubicBezier::initSpans(){
 
 	/** Extract control points for each span and create new span objects **/
 
-	/* 
-		Adjust the element being accessed, depending on whether only knots 
-		have been included. If only knots are used, set the inner control
-		points equal to their nearest knot.
-	*/
-	int adjust = m_only_knots ? 0 : 1;		
-	int PT_CT = 4;
+	int PT_CT = 4;			// Number of control points that define a span
+	int INC = PT_CT - 1;	// Number of points to increment when defining new span (last point of span n should == first point of span n+1)
 	for (int i = 0; i < m_span_count; i++){				
-		OrderedPair ctrl_pt_subset[4] = { m_ctrl_pts[0 + i * PT_CT], m_ctrl_pts[0 + i * PT_CT + adjust], 
-			m_ctrl_pts[1 + i * PT_CT + adjust], m_ctrl_pts[1 + i * PT_CT + 2 * adjust] };
+		OrderedPair ctrl_pt_subset[4] = { m_ctrl_pts[0 + i * INC], m_ctrl_pts[1 + i * INC], 
+			m_ctrl_pts[2 + i * INC], m_ctrl_pts[3 + i * INC] };
 		// Don't pass a garbage address to the pointer parameter for the first span
 		Span* prev_span = i == 0 ? NULL : &m_spans[i - 1];				
 		m_spans[i] = Span(ctrl_pt_subset, prev_span);		
@@ -347,10 +336,7 @@ void CubicBezier::initSpans(){
 OrderedPair CubicBezier::positionAtT(float p_T){
 
 	float max_val;
-	if (m_only_knots)
-		max_val = m_ctrl_pts[m_knot_count - 1].x();
-	else
-		max_val = m_ctrl_pts[m_knot_count * 2 - 1].x();
+	max_val = m_ctrl_pts[m_knot_count * 2 - 1].x();
 	
 	// Parameter t as x position
 	p_T = p_T * max_val;
