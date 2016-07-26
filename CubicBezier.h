@@ -86,13 +86,34 @@ class OrderedPair {
 class Span {
 
 	public:
+
+		// Constructors
 		Span();
-		Span(OrderedPair *p_ctrl_pts, Span* p_prev_span);						
-		OrderedPair positionAtT(float p_t);
-		OrderedPair positionAtNextT();
+		Span(OrderedPair *p_ctrl_pts, Span* p_prev_span);								
+		
+		// Meta functions
+		int id();
+		void prevSpan(Span* p_span);
+		Span* prevSpan();
+		void nextSpan(Span* p_span);
+		Span* nextSpan();
+
+		// Control points getter
+		OrderedPair *ctrlPts();
+		
+		// Standard Bezier evaluation
 		void incrementSize(float p_h);
-		void incrementSizeFromX(float p_h);
-		float incrementSize();			
+		float incrementSize();
+		OrderedPair positionAtT(float p_T);
+		OrderedPair positionAtNextT();
+		int stepsRemaining();
+		
+		// Evaluation w/r/t X
+		void incrementSizeX(float p_hx);
+		float positionAtX(float p_x);
+		float velocityAtX(float p_x);				
+		
+		// Helper functions
 		bool containsX(float p_x);
 		bool containsY(float p_y);
 		float minX();
@@ -101,31 +122,39 @@ class Span {
 		float minY();
 		float maxY();
 		float rangeY();
-		int stepsRemaining();
-
-		void prevSpan(Span* p_span);
-		Span* prevSpan();
-		void nextSpan(Span* p_span);
-		Span* nextSpan();
 		
-		OrderedPair *ctrlPts();
-		int id();
-
+		
 	private:			
+		// Static vars
+		static const int g_MAX_CTRL_PTS = 4;
+		static int g_id_gen; 
+
+		// Meta vars
+		int m_id;
+		Span *m_next_span;
+		Span *m_prev_span;
+
+		// Defining functions / vals
 		void setCoeffs();
+		OrderedPair m_ctrl_pts[g_MAX_CTRL_PTS];		
 		OrderedPair m_coeff_A;
 		OrderedPair m_coeff_B;
 		OrderedPair m_coeff_C;
 		OrderedPair m_coeff_D;
-		Span *m_next_span;
-		Span *m_prev_span;
-		static const int g_MAX_CTRL_PTS = 4;			
-		OrderedPair m_ctrl_pts[g_MAX_CTRL_PTS];
+		
+		// Standard evaluation
 		float m_h;				// The t step size
 		float m_T;
 		int m_t_steps_remain;
-		static int g_id_gen;
-		int m_id;	
+
+		// Evaluation w/r/t X
+		float m_hx;				// The x increment step size 		
+		float tOfX(float x, float guess, int recursion_limit);
+
+		// Cubic solvers
+		float solveCubic(float p_T, bool p_is_x, float p_offset);
+		float solveCubic(float p_T, bool p_is_x);		
+		float solveCubicPrime(float p_T, bool p_is_x);
 };	
 
 class CubicBezier
@@ -143,14 +172,18 @@ class CubicBezier
 		CubicBezier();
 		CubicBezier(OrderedPair *p_ctrl_pts, int p_knot_count);
 		~CubicBezier();
+
 		void init(OrderedPair *p_ctrl_pts, int p_knot_count);
 		OrderedPair positionAtT(float p_T);
-		OrderedPair positionAtNextT();		
+		OrderedPair positionAtNextT();				
+
 		void knotCount(int p_count);
 		int knotCount();
 
 		void setNextX(float p_x);
 		void setNextY(float p_y);
+
+		float positionAtX(float p_x);
 
 		float incrementSize();
 		int stepsRemaining();

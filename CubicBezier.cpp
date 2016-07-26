@@ -6,7 +6,11 @@
 	along the curve are desired in fixed t parameter increments.
 */
 
-/********** OrderedPair class functions **********/
+/**************************************/
+/*									  */
+/*         OrderedPair Class		  */
+/*									  */
+/**************************************/
 
 #pragma region OrderedPair Class Functions
 
@@ -88,24 +92,39 @@ OrderedPair operator - (const OrderedPair& p_op){
 
 #pragma endregion
 
-/********** Span class functions **********/
+/**************************************/
+/*									  */
+/*			  Span Class			  */
+/*									  */
+/**************************************/
 
-#pragma region Span Class Functions
+#pragma region Span Class
 
-int Span::g_id_gen = 0;
-
+// Constructors
+#pragma region Span Constructors
 Span::Span(){}
 
 Span::Span(OrderedPair *p_ctrl_pts, Span *p_prev_span){		
 	m_id = g_id_gen++;
 	m_h = NULL;
+	m_hx = NULL;
 	m_T = NULL;
 	m_t_steps_remain = NULL;
 	for (int i = 0; i < g_MAX_CTRL_PTS; i++){
 		m_ctrl_pts[i] = p_ctrl_pts[i];
 	}	
 	m_next_span = NULL;
-	prevSpan(p_prev_span);				
+	prevSpan(p_prev_span);
+	setCoeffs();
+}
+#pragma endregion Span Constructors
+
+/********** Public Members **********/
+
+// Meta functions
+#pragma region Span Meta Functions
+int Span::id(){
+	return m_id;
 }
 
 void Span::nextSpan(Span *p_next_span){	
@@ -125,17 +144,17 @@ void Span::prevSpan(Span *p_prev_span){
 Span* Span::prevSpan(){
 	return m_prev_span;
 }
+#pragma endregion Span Meta Functions
 
-/**
-	@return The number of steps in this segment
-*/
-void Span::incrementSizeFromX(float p_x){
-	// Find h as x fraction of total span X range
-	float h = p_x / rangeX();
-	incrementSize(h);
-	m_t_steps_remain = (int)round(1 / h);
-	//cout << "Span steps remaining: " << m_t_steps_remain << endl;
+// Control points getter
+#pragma region Control points getter
+OrderedPair *Span::ctrlPts(){
+	return m_ctrl_pts;
 }
+#pragma endregion Control points getter
+
+// Standard Bezier evaluation
+#pragma region Standard Bezier evaluation
 
 void Span::incrementSize(float p_h){
 	m_h = p_h;
@@ -147,41 +166,157 @@ float Span::incrementSize(){
 	return m_h;
 }
 
-int Span::stepsRemaining(){
-	return m_t_steps_remain;
+OrderedPair Span::positionAtT(float p_T){
+	return OrderedPair(solveCubic(p_T, true), solveCubic(p_T, false));
 }
-	
-OrderedPair Span::positionAtNextT(){		
+
+OrderedPair Span::positionAtNextT(){
 	int this_T = m_T;
 	m_T += m_h;
 	m_t_steps_remain--;
 	return positionAtT(this_T);
 }
 
+int Span::stepsRemaining(){
+	return m_t_steps_remain;
+}
+
+#pragma endregion Standard Bezier evaluation
+
+// Evaluation w/r/t X
+#pragma region Evaluation w/r/t X
+
+float Span::positionAtX(float p_x){	
+	float t = tOfX(p_x, 0.5, 15);	
+	return solveCubic(t, false);	
+};
+
+float Span::velocityAtX(float p_x){
+	float t = tOfX(p_x, 0.5, 15);
+	return solveCubicPrime(t, false);
+};
+
+/**
+@return The number of steps in this segment
+*/
+void Span::incrementSizeX(float p_x){
+	m_hx = p_x;
+	// Determine the steps based upon the x range of the span
+	m_t_steps_remain = (m_ctrl_pts[3].x() - m_ctrl_pts[0].x()) / m_hx;
+}
+
+#pragma endregion Evaluation w/r/t X
+
+
+/********** Private Members **********/
+
+// Static vars
+#pragma region Static vars
+int Span::g_id_gen = 0;
+#pragma endregion Static vars
+
+// Defining functions
+#pragma region Defining functions
 void Span::setCoeffs(){
 	// Calculate the coefficients
-	OrderedPair m_coeff_A = (-m_ctrl_pts[0]) + (3 * m_ctrl_pts[1]) + (-3 * m_ctrl_pts[2]) + m_ctrl_pts[3];
-	OrderedPair m_coeff_B = (3 * m_ctrl_pts[0]) + (-6 * m_ctrl_pts[1]) + (3 * m_ctrl_pts[2]);
-	OrderedPair m_coeff_C = (-3 * m_ctrl_pts[0]) + (3 * m_ctrl_pts[1]);
-	OrderedPair m_coeff_D = m_ctrl_pts[0];
+	m_coeff_A = (-m_ctrl_pts[0]) + (3 * m_ctrl_pts[1]) + (-3 * m_ctrl_pts[2]) + m_ctrl_pts[3];
+	m_coeff_B = (3 * m_ctrl_pts[0]) + (-6 * m_ctrl_pts[1]) + (3 * m_ctrl_pts[2]);
+	m_coeff_C = (-3 * m_ctrl_pts[0]) + (3 * m_ctrl_pts[1]);
+	m_coeff_D = m_ctrl_pts[0];	
+}
+#pragma endregion Defining functions
+
+// Cubic solvers
+#pragma region Cubic solvers
+float Span::solveCubic(float p_val, bool p_is_x){
+	solveCubic(p_val, p_is_x, 0);
+}
+/**
+	@param p_val Value for which the equation will be evaluated
+	@param p_x_coeffs Should the set of x coefficients be used? If not, y coefficients will be used instead.
+	@param p_offset For use when finding cubic root. The x/y value for which parameter t is sought. It is
+		subtracted from the final value such that the result is a solution to 
+		the cubic in standard form At^3 + Bt^2 + Ct + (D - p_offset) = 0
+*/
+float Span::solveCubic(float p_val, bool p_x_coeffs, float p_offset){	
+	float ret;
+	int which = p_x_coeffs ? 0 : 1;
+	// P(t) = At^3 + Bt^2 + Ct + D
+	// Calculate via Horner's rule	
+	float term = p_val;
+	ret = m_coeff_D.val(which) - p_offset;
+	ret += term * m_coeff_C.val(which);
+	term *= p_val;
+	ret += term * m_coeff_B.val(which);
+	term *= p_val;
+	ret += term * m_coeff_A.val(which);
+	/* 
+		No idea why, but without this NOP, the return 
+		value doesn't always "stick" in variables of calling
+		functions.
+	*/
+	__asm__("nop");
+	return ret;
 }
 
-OrderedPair Span::positionAtT(float p_T){		
+float Span::solveCubicPrime(float p_val, bool p_is_x){
+	float ret;
+	int which = p_is_x ? 0 : 1;
+	// P'(t) = 2At^2 + 3Bt + C
+	// Calculate via Horner's rule
+	float term = p_val;	
+	ret = m_coeff_C.val(which);			
+	ret += term * m_coeff_B.val(which) * 2;	
+	term *= p_val;
+	ret += term * m_coeff_A.val(which) * 3;		
+	return ret;
+}
 
-	float pos[2];
-	for (int i = 0; i < 2; i++){
-		// B(t) = At^3 + Bt^2 + Ct + D
-		// Calculate via Horner's rule
-		pos[i] = m_coeff_D.val(i);				
-		pos[i] += p_T * m_coeff_C.val(i);		
-		p_T *= p_T;
-		pos[i] += p_T * m_coeff_B.val(i);
-		p_T *= p_T;
-		pos[i] += p_T * m_coeff_A.val(i);		
+#pragma endregion Cubic solvers
+
+// Evaluation w/r/t X
+#pragma region Evaluation w/r/t X
+/**
+	This function determines the t value along the span for
+	a given value of x (in this case, our time variable) using
+	Newton's method.
+
+	@param p_x The Bezier x value for which to solve for parameter t
+	@param p_guess Initial guess of t value
+	@param p_recursion_limit Maximum number of iterations of Newton's method
+		to run before returning the result of a non-converged solution
+
+*/
+float Span::tOfX(float p_x, float p_guess, int p_recursion_limit){
+	if (p_x == 0)
+		return 0.0;
+
+	static int recurse_index = 0;
+	float convergence_threshold = 1.5e-5;
+
+	// Find f(guess) and f'(guess)
+	float f_of_guess = solveCubic(p_guess, true, p_x);	
+	float f_prime_of_guess = solveCubicPrime(p_guess, true);
+	// Newton's method
+	float new_guess = p_guess - (f_of_guess / f_prime_of_guess);
+	recurse_index++;
+	// Return when close enough or exceeding recursion limit
+	if (abs(new_guess - p_guess) < convergence_threshold || recurse_index == p_recursion_limit){
+		// Be sure to reset the resursion index, otherwise the function 
+		// will return after too few iterations upon future calls
+		recurse_index = 0;
+		return new_guess;
 	}
-	return OrderedPair(pos[0], pos[1]);
+	// Otherwise do another iteration
+	else{
+		return tOfX(p_x, new_guess, p_recursion_limit);
+	}
 }
+#pragma endregion Evaluation w/r/t X
 
+// **** Helper Functions *** //
+
+#pragma region Helper Functions
 bool Span::containsX(float p_x){	
 	if (p_x >= minX() && p_x <= maxX())	
 		return true;
@@ -219,21 +354,17 @@ float Span::maxY(){
 float Span::rangeY(){
 	return maxY() - minY();
 }
+#pragma endregion Helper Functions
 
-OrderedPair *Span::ctrlPts(){
-	return m_ctrl_pts;
-}
+#pragma endregion Span Class
 
-int Span::id(){
-	return m_id;
-}
+/**************************************/
+/*									  */
+/*         CubicBezier Class		  */
+/*									  */
+/**************************************/
 
-
-#pragma endregion
-
-/********** CubicBezier class functions **********/
-
-#pragma region CubicBezier Class Functions
+#pragma region CubicBezier Class
 
 CubicBezier::CubicBezier(){
 	init(NULL, 2);
@@ -319,17 +450,17 @@ void CubicBezier::initSpans(){
 	m_spans = (Span *)malloc(memory_needed);
 	m_span_mem_allocated = true;
 
-	/** Extract control points for each span and create new span objects **/
+	/** Select starting control point for each span and create new span objects **/
 
 	int PT_CT = 4;			// Number of control points that define a span
 	int INC = PT_CT - 1;	// Number of points to increment when defining new span (last point of span n should == first point of span n+1)
 	for (int i = 0; i < m_span_count; i++){				
-		OrderedPair ctrl_pt_subset[4] = { m_ctrl_pts[0 + i * INC], m_ctrl_pts[1 + i * INC], 
-			m_ctrl_pts[2 + i * INC], m_ctrl_pts[3 + i * INC] };
 		// Don't pass a garbage address to the pointer parameter for the first span
-		Span* prev_span = i == 0 ? NULL : &m_spans[i - 1];				
-		m_spans[i] = Span(ctrl_pt_subset, prev_span);		
-	}		
+		Span* prev_span = i == 0 ? NULL : &m_spans[i - 1];		
+		m_spans[i] = Span((m_ctrl_pts + i * INC), prev_span);		
+	}
+
+	// Set current span to first available
 	m_cur_span = &m_spans[0];			
 }
 
@@ -345,12 +476,24 @@ OrderedPair CubicBezier::positionAtT(float p_T){
 	for (int i = 0; i < m_span_count; i++){
 		if (m_spans[i].containsX(p_T)){
 			// Convert parameter to t of given span and get result
-			//cout << "minX: " << m_spans[i].minX() << " rangeX: " << m_spans[i].rangeX() << " p_T: " << p_T << "\n" << endl;
 			p_T = (p_T - m_spans[i].minX()) / m_spans[i].rangeX();
 			return m_spans[i].positionAtT(p_T);
 		}
 	}
 	return OrderedPair(0, 0);
+}
+
+float CubicBezier::positionAtX(float p_x){
+	float max_val;
+	max_val = m_ctrl_pts[m_knot_count * 2 - 1].x();
+
+	// Determine which span to check
+	for (int i = 0; i < m_span_count; i++){
+		if (m_spans[i].containsX(p_x)){
+			return m_spans[i].positionAtX(p_x);
+		}
+	}
+	return -1e6;
 }
 
 Span *CubicBezier::getSpan(int p_which){
@@ -390,4 +533,4 @@ int CubicBezier::stepsRemaining(){
 	return m_t_steps_remain;
 }
 
-#pragma endregion
+#pragma endregion CubicBezier Class
