@@ -111,16 +111,17 @@ class Span {
 		// Evaluation w/r/t X
 		void incrementSizeX(float p_hx);
 		float positionAtX(float p_x);
-		float velocityAtX(float p_x);				
+		float velocityAtX(float p_x);
+        float accelAtX(float p_x);
 		
 		// Helper functions
 		bool containsX(float p_x);
 		bool containsY(float p_y);
-		float minX();
-		float maxX();
+        float startX();
+        float stopX();
+        float startY();
+        float stopY();		
 		float rangeX();
-		float minY();
-		float maxY();
 		float rangeY();
 		
 		
@@ -155,6 +156,8 @@ class Span {
 		float solveCubic(float p_T, bool p_is_x, float p_offset);
 		float solveCubic(float p_T, bool p_is_x);		
 		float solveCubicPrime(float p_T, bool p_is_x);
+        float solveCubicDoublePrime(float p_T, bool p_is_x);
+        
 };	
 
 class CubicBezier
@@ -185,6 +188,12 @@ class CubicBezier
 
 		float positionAtX(float p_x);
         float velocityAtX(float p_x);
+        float accelAtX(float p_x);
+
+        float startX();
+        float stopX();
+        float startY();
+        float stopY();
 
 		float incrementSize();
 		int stepsRemaining();
@@ -192,10 +201,19 @@ class CubicBezier
 		void initSpans();
 		void releaseMemory();
 
+        /*
+            These functions fetch the X and Y (F - function) values
+            of the specified key frame (knot). The notation is derived
+            from existing functions in the KeyFrames class.
+        */
+        float getXN(int p_kf);
+        float getFN(int p_kf);
+
 	private:
 
 		/********** Private Variables **********/
 
+        static const long g_ERROR = -987654321;
 		bool m_span_mem_allocated;
 		bool m_ctrl_mem_allocated;
 		OrderedPair *m_ctrl_pts;		
@@ -206,9 +224,12 @@ class CubicBezier
 		int m_next_x;
 		int m_next_y;
 
+        static const int g_PTS_PER_SPAN = 4;
+
+
 		/********** Private Functions **********/		
 		
-		
+        Span* spanContainingX(float p_x);
 };
 
 #endif

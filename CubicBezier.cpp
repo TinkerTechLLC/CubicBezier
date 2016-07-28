@@ -196,6 +196,11 @@ float Span::velocityAtX(float p_x){
 	return solveCubicPrime(t, false);
 };
 
+float Span::accelAtX(float p_x){
+    float t = tOfX(p_x, 0.5, 15);
+    return solveCubicDoublePrime(t, false);
+};
+
 /**
 @return The number of steps in this segment
 */
@@ -262,7 +267,7 @@ float Span::solveCubic(float p_val, bool p_x_coeffs, float p_offset){
 float Span::solveCubicPrime(float p_val, bool p_is_x){
 	float ret;
 	int which = p_is_x ? 0 : 1;
-	// P'(t) = 2At^2 + 3Bt + C
+	// P'(t) = 3At^2 + 2Bt + C
 	// Calculate via Horner's rule
 	float term = p_val;	
 	ret = m_coeff_C.val(which);			
@@ -270,6 +275,15 @@ float Span::solveCubicPrime(float p_val, bool p_is_x){
 	term *= p_val;
 	ret += term * m_coeff_A.val(which) * 3;		
 	return ret;
+}
+
+float Span::solveCubicDoublePrime(float p_val, bool p_is_x){
+    float ret;
+    int which = p_is_x ? 0 : 1;
+    // P'(t) = 6At + 2B    
+    float term = p_val;
+    ret = 6 * m_coeff_A.val(which) * term + 2* m_coeff_B.val(which);    
+    return ret;
 }
 
 #pragma endregion Cubic solvers
@@ -318,41 +332,41 @@ float Span::tOfX(float p_x, float p_guess, int p_recursion_limit){
 
 #pragma region Helper Functions
 bool Span::containsX(float p_x){	
-	if (p_x >= minX() && p_x <= maxX())	
+	if (p_x >= startX() && p_x <= stopX())	
 		return true;
 	else		
 		return false;
 }
 
 bool Span::containsY(float p_y){
-	if (minY() <= p_y && p_y <= maxY())
+	if (startY() <= p_y && p_y <= stopY())
 		return true;
 	else
 		return false;
 }
 
-float Span::minX(){		
+float Span::startX(){		
 	return m_ctrl_pts[0].x();
 }
 
-float Span::maxX(){
+float Span::stopX(){
 	return m_ctrl_pts[g_MAX_CTRL_PTS-1].x();
 }
 
 float Span::rangeX(){
-	return maxX() - minX();
+    return stopX() - startX();
 }
 
-float Span::minY(){
+float Span::startY(){
 	return m_ctrl_pts[0].y();
 }
 
-float Span::maxY(){
+float Span::stopY(){
 	return m_ctrl_pts[g_MAX_CTRL_PTS-1].y();
 }
 
 float Span::rangeY(){
-	return maxY() - minY();
+    return stopY() - startY();
 }
 #pragma endregion Helper Functions
 
@@ -393,13 +407,12 @@ CubicBezier::~CubicBezier(){
 
 void CubicBezier::knotCount(int p_count){
 	m_knot_count = p_count;
-	m_span_count = m_knot_count - 1;	
-	const int PTS_PER_SPAN = 4;
+	m_span_count = m_knot_count - 1;		
 	/*
 		Allocate memory for control points here rather
 		than pointing to an external point array
 	*/
-	int pt_count = m_span_count * (PTS_PER_SPAN-1) + 1;	// span n pt[3] == span n+1 pt[0], so no need to duplicate linking points
+    int pt_count = m_span_count * (g_PTS_PER_SPAN - 1) + 1;	// span n pt[3] == span n+1 pt[0], so no need to duplicate linking points
 	releaseMemory();
 	m_ctrl_pts = (OrderedPair *)malloc(pt_count * sizeof(OrderedPair));
 	for (int i = 0; i < pt_count; i++){
@@ -437,6 +450,30 @@ void CubicBezier::setNextY(float p_y){
 	op.y(p_y);
 	m_ctrl_pts[m_next_y] = op;
 	m_next_y++;
+    /* 
+        Each span has 4 control points, but the first point of every 
+        span but the first will always be the same as the last point 
+        of the previous span, thus the total number of control 
+        points = m_span_count * 3 + 1;
+
+        We're assuming here that all the X values have been set
+        already and that once the final Y value is recieved, we're
+        okay to initialize the spans. Seems like it could be a bad
+        assumption to make, so change this behavior as needed.
+    */
+    if (m_next_y == m_span_count * g_PTS_PER_SPAN + 1){
+        this->initSpans();
+    }
+}
+
+float CubicBezier::getXN(int p_kf){
+    int pnt = p_kf * g_PTS_PER_SPAN;
+    return m_ctrl_pts[pnt].x();
+}
+
+float CubicBezier::getFN(int p_kf){
+    int pnt = p_kf * g_PTS_PER_SPAN;
+    return m_ctrl_pts[pnt].y();
 }
 
 void CubicBezier::initSpans(){
@@ -476,37 +513,72 @@ OrderedPair CubicBezier::positionAtT(float p_T){
 	for (int i = 0; i < m_span_count; i++){
 		if (m_spans[i].containsX(p_T)){
 			// Convert parameter to t of given span and get result
-			p_T = (p_T - m_spans[i].minX()) / m_spans[i].rangeX();
+			p_T = (p_T - m_spans[i].startX()) / m_spans[i].rangeX();
 			return m_spans[i].positionAtT(p_T);
 		}
 	}
 	return OrderedPair(0, 0);
 }
 
-float CubicBezier::positionAtX(float p_x){
-	float max_val;
-	max_val = m_ctrl_pts[m_knot_count * 2 - 1].x();
-
-	// Determine which span to check
-	for (int i = 0; i < m_span_count; i++){
-		if (m_spans[i].containsX(p_x)){
-			return m_spans[i].positionAtX(p_x);
-		}
-	}
-	return -1e6;
+float CubicBezier::positionAtX(float p_x){	
+    Span *this_span = spanContainingX(p_x);
+    if (this_span != NULL)
+        return this_span->positionAtX(p_x);
+    else
+        return g_ERROR;
 }
 
-float CubicBezier::velocityAtX(float p_x){
-    float max_val;
-    max_val = m_ctrl_pts[m_knot_count * 2 - 1].x();
+float CubicBezier::velocityAtX(float p_x){    
+    Span *this_span = spanContainingX(p_x);
+    if (this_span != NULL)
+        return this_span->velocityAtX(p_x);
+    else
+        return g_ERROR;
+}
 
-    // Determine which span to check
+float CubicBezier::accelAtX(float p_x){
+    Span *this_span = spanContainingX(p_x);
+    if (this_span != NULL)
+        return this_span->accelAtX(p_x);
+    else
+        return g_ERROR;
+}
+
+Span *CubicBezier::spanContainingX(float p_x){
     for (int i = 0; i < m_span_count; i++){
         if (m_spans[i].containsX(p_x)){
-            return m_spans[i].velocityAtX(p_x);
+            return &m_spans[i];
         }
     }
-    return -1e6;
+    return NULL;
+}
+
+float CubicBezier::startX(){
+    if (m_spans != NULL)
+        return m_spans[0].startX();
+    else
+        return 0.0;
+}
+
+float CubicBezier::stopX(){
+    if (m_spans != NULL)
+        return m_spans[m_span_count - 1].stopX();
+    else
+        return 0.0;
+}
+
+float CubicBezier::startY(){
+    if (m_spans != NULL)
+        return m_spans[0].startY();
+    else
+        return 0.0;
+}
+
+float CubicBezier::stopY(){
+    if (m_spans != NULL)
+        return m_spans[m_span_count - 1].stopX();
+    else
+        return 0.0;
 }
 
 Span *CubicBezier::getSpan(int p_which){
