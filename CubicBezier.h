@@ -184,6 +184,7 @@ class CubicBezier
 		void setNextY(float p_y);
 
 		float positionAtX(float p_x);
+        float velocityAtX(float p_x);
 
 		float incrementSize();
 		int stepsRemaining();

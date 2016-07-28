@@ -496,6 +496,19 @@ float CubicBezier::positionAtX(float p_x){
 	return -1e6;
 }
 
+float CubicBezier::velocityAtX(float p_x){
+    float max_val;
+    max_val = m_ctrl_pts[m_knot_count * 2 - 1].x();
+
+    // Determine which span to check
+    for (int i = 0; i < m_span_count; i++){
+        if (m_spans[i].containsX(p_x)){
+            return m_spans[i].velocityAtX(p_x);
+        }
+    }
+    return -1e6;
+}
+
 Span *CubicBezier::getSpan(int p_which){
 	return &m_spans[p_which];
 }
