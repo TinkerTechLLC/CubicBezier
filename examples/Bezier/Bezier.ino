@@ -14,25 +14,34 @@ void setup(){
 
 
         CubicBezier bezier = CubicBezier();
-        bezier.knotCount(2);
+        bezier.knotCount(3);
         bezier.setNextX(0);
-        bezier.setNextX(10);
-        bezier.setNextX(11);
+        bezier.setNextX(25);
+        bezier.setNextX(50);
         bezier.setNextX(75);
+        
+        bezier.setNextX(125);
+        bezier.setNextX(150);
+        bezier.setNextX(175);
       	
         bezier.setNextY(0);
+        bezier.setNextY(10);
+        bezier.setNextY(60);
+        bezier.setNextY(75);        
+
         bezier.setNextY(60);
         bezier.setNextY(10);
         bezier.setNextY(75);
+
       
         bezier.initSpans();
 
-        const int INC_COUNT = 20;
-        float hx = 75.0 / INC_COUNT;
+        const int INC_COUNT = 200;
+        float hx = 175.0 / INC_COUNT;
         float results[INC_COUNT+1];
         startTimer();
         for(int i = 0; i < INC_COUNT+1; i++){
-          results[i] = bezier.positionAtX(hx * i);
+          results[i] = bezier.velocityAtX(hx * i);
         }
         long optimized_time = elapsedMicros();
         Serial.print("Optimized execution time: ");
@@ -62,5 +71,4 @@ long elapsedMicros(){
 	long elapsed = micros() -start_time;
 	return elapsed;
 }
-
 
